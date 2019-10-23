@@ -162,5 +162,4 @@ public class MainActivity extends AppCompatActivity {
         scoreTextView2.setText(score2+"");
     }
 
-
 }
