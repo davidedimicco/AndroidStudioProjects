@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Segnapunti Ping-Pong</string>
+    <string name="reset">Azzera</string>
+    <string name="save">Salva</string>
+    <string name="score">Punto!</string>
+    <string name="you_won">Hai VINTO!</string>
+    <string name="your_turn">Tocca a te!</string>
+</resources>
