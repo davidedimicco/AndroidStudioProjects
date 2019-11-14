@@ -1,5 +1,6 @@
 package com.davidedimicco.hypertris;
 
+import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Bundle;
@@ -9,8 +10,19 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.GridLayout;
 import android.widget.Toast;
+
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
+
 public class MainActivity extends AppCompatActivity {
+
+    HashMap<String,Double> strategy;
+
     boolean firstOrNot;
     boolean isTheGameStarted;
     boolean isNextGridOk;
@@ -241,6 +253,7 @@ public class MainActivity extends AppCompatActivity {
             writeNewQuestionMarks(button);
         }
     }
+
     public boolean gameOver(){
         String temp="";
         boolean isGameOver=true;
@@ -301,6 +314,7 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
+
     public void writeNewQuestionMarks(Button button){
         ArrayList<Integer> indices=getButtonIndices(button);
         isNextGridOk=false;
@@ -348,6 +362,7 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
+
     public ArrayList<Integer> getButtonIndices(Button button){
         for(int i1=0;i1<3;i1++){
             for(int i2=0;i2<3;i2++){
@@ -368,6 +383,7 @@ public class MainActivity extends AppCompatActivity {
         //Di qua in teoria non passa mai, ma magari andrebbe sistemato facendo lanciare un eccezione
         return null;
     }
+
     public ArrayList<Integer> getGridIndices(GridLayout grid){
         for(int i1=0;i1<3;i1++){
             for(int i2=0;i2<3;i2++){
@@ -382,4 +398,94 @@ public class MainActivity extends AppCompatActivity {
         //Di qua in teoria non passa mai, ma magari andrebbe sistemato facendo lanciare un eccezione
         return null;
     }
+
+
+    
+
+    public void deserializeStrategy(){
+        try {
+            FileInputStream fis=this.openFileInput("Strategy");
+            ObjectInputStream ois=new ObjectInputStream(fis);
+            this.strategy=(HashMap<String,Double>)ois.readObject();
+            ois.close();
+            fis.close();
+            //Toast toast = Toast.makeText(this, "ARCHIVE FOUND!", Toast.LENGTH_LONG);
+            //toast.show();
+        } catch (ClassNotFoundException | IOException e1) {
+            //se la strategia ancora non esiste la creo
+            strategy = new HashMap<String,Double>();
+            //Toast toast = Toast.makeText(this, "Archive file not found!", Toast.LENGTH_LONG);
+            //toast.show();
+        }
+    }
+
+    public void serializeStrategy(){
+        FileOutputStream fos;
+        try {
+            //fos = new FileOutputStream(((MainActivity)getActivity()).path+((MainActivity)getActivity()).startingLanguage+"-"+((MainActivity)getActivity()).endingLanguage);
+            fos = this.openFileOutput("Strategy", Context.MODE_PRIVATE);
+            ObjectOutputStream oos=new ObjectOutputStream(fos);
+            //QUA DEVO INSERIRE LA STRATEGIA DA SERIALIZZARE AL POSTO DELL'ARCHIVIO
+            oos.writeObject(this.strategy);
+            oos.close();
+            fos.close();
+            //Toast toast = Toast.makeText(this, "ARCHIVE WRITTEN", Toast.LENGTH_LONG);
+            //toast.show();
+        } catch (IOException e) {
+            //Toast toast = Toast.makeText(this,"Archive file not written", Toast.LENGTH_LONG);
+            //toast.show();
+        }
+    }
+
+    public void giveReward(Player p1,Player p2, Board board){
+        //First player is winner
+        if(board.winner==1){
+            p1.feedReward(1);
+            p2.feedReward(0);
+        }
+        //Second player is winner
+        else if(board.winner==-1){
+            p1.feedReward(0);
+            p2.feedReward(1);
+        }
+        //The game ended in a tie
+        else{
+            p1.feedReward(0.5);
+            p2.feedReward(0.5);
+        }
+    }
+
+    public void train(int n){
+        //Here I create two IntelligentPlayers with the saved strategy
+        deserializeStrategy();
+        IntelligentPlayer p1=new IntelligentPlayer(strategy,0.3);
+        IntelligentPlayer p2=new IntelligentPlayer(strategy,0.3);
+
+        Board board=new Board();
+        Position nextGridPosition=null;
+        HyperPosition action;
+        for(int i=0;i<n;i++){
+            while(board.winner==null){
+                if(board.oddTurn){
+                    action=p1.chooseAction(board.availableHyperPositions(nextGridPosition),board);
+                    board.update(action);
+                    p1.states.add(board.toString());
+                }
+                else{
+                    action=p2.chooseAction(board.availableHyperPositions(nextGridPosition),board);
+                    board.update(action);
+                    p2.states.add(board.toString());
+                }
+                nextGridPosition=action.inGridPosition;
+            }
+            //Qua devo dare la reward a chi se la merita..
+            giveReward(p1,p2,board);
+            board.reset();
+            p1.reset();
+            p2.reset();
+        }
+        //Here I save the strategy (DOES THIS REALLY WORK OR THE ONLY MODIFICATION IS IN THE INPUT OF THE INTELLIGENTPLAYERS?)
+        serializeStrategy();
+    }
+
 }
