@@ -8,22 +8,22 @@ import java.util.HashMap;
  */
 public class IntelligentPlayer extends Player{
 
-    double learnRate;
-    double decayGamma;
-    double expRate;
+    private double learnRate;
+    private double decayGamma;
+    private double expRate;
 
     /**This is a map associating to hash strings of states of the board, their value*/
-    HashMap<String,Double> stateToValue;
+    private HashMap<String,Double> stateToValue;
 
     /**This is the list of the hash strings representing the states of the board after each move of this player*/
-    ArrayList<String> states;
+    private ArrayList<String> states;
 
     public IntelligentPlayer(double er){
-        learnRate=0.2;
-        decayGamma = 0.9;
+        this.learnRate=0.2;
+        this.decayGamma = 0.9;
         this.expRate=er; //0.3
         this.states=new ArrayList<String>();
-        stateToValue = new HashMap<String,Double>();
+        this.stateToValue = new HashMap<String,Double>();
     }
 
     public IntelligentPlayer(HashMap<String,Double> strategy, double er){
@@ -32,6 +32,10 @@ public class IntelligentPlayer extends Player{
         this.expRate=er; //0.3
         this.states=new ArrayList<String>();
         stateToValue = strategy;
+    }
+
+    public void appendState(String stateHash){
+        this.states.add(stateHash);
     }
 
     public void reset(){
@@ -80,13 +84,4 @@ public class IntelligentPlayer extends Player{
             return bestChoice;
         }
     }
-/*
-    public void loadStrategy(){
-
-    }
-
-    public void saveStrategy(){
-
-    }
-*/
 }

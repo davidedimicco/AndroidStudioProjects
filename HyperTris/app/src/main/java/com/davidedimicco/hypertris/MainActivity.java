@@ -22,37 +22,40 @@ import java.util.HashMap;
 public class MainActivity extends AppCompatActivity {
 
     HashMap<String,Double> strategy;
+    HyperTrisModel model;
+    IntelligentPlayer ip;
+    HumanPlayer hp;
 
-    boolean firstOrNot;
     boolean isTheGameStarted;
-    boolean isNextGridOk;
     Button resetBtn;
     Button[][][][] btn;
     GridLayout[][] bigGrid;
     String[][] tris;
-    public static final int[][] WC1={{0,0},{0,1},{0,2}};
-    public static final int[][] WC2={{1,0},{1,1},{1,2}};
-    public static final int[][] WC3={{2,0},{2,1},{2,2}};
-    public static final int[][] WC4={{0,0},{1,0},{2,0}};
-    public static final int[][] WC5={{0,1},{1,1},{2,1}};
-    public static final int[][] WC6={{0,2},{1,2},{2,2}};
-    public static final int[][] WC7={{0,0},{1,1},{2,2}};
-    public static final int[][] WC8={{0,2},{1,1},{2,0}};
-    int[][][] WINNING_CONFIGURATIONS={WC1,WC2,WC3,WC4,WC5,WC6,WC7,WC8};
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        firstOrNot=true;
+
+        //NEW STUFF
+        deserializeStrategy();
+        ip=new IntelligentPlayer(strategy,0.3);
+        hp=new HumanPlayer();
+        //Here we choose who is the first player
+        if(Math.random()<0.5){
+            model=new HyperTrisModel(ip,hp);
+        }
+        else{
+            model=new HyperTrisModel(hp,ip);
+        }
+
+        //OLD STUFF
         isTheGameStarted=false;
-        isNextGridOk=true;
         //creo il bottone reset e gli assegno un clickListener
         resetBtn=(Button)findViewById(R.id.resetBtn);
         resetBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                firstOrNot=true;
-                isTheGameStarted=false;
+                model.reset();
                 for(int i1=0;i1<3;i1++){
                     for(int i2=0;i2<3;i2++){
                         for(int i3=0;i3<3;i3++){
@@ -160,24 +163,27 @@ public class MainActivity extends AppCompatActivity {
         View.OnClickListener listener= new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Button btn=(Button)v;
-                if(btn.getText().toString().equals("?") || !isTheGameStarted){
-                    if(!isTheGameStarted){
-                        isTheGameStarted=true;
-                    }
-                    btn.setTextColor(firstOrNot? Color.BLUE : Color.RED);
-                    btn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 24f);
-                    btn.setTypeface(Typeface.defaultFromStyle(Typeface.BOLD));
-                    btn.setText(firstOrNot? "X" : "O");
-                    firstOrNot=!firstOrNot;
-                    GridLayout grid=(GridLayout)v.getParent();
-                    try {
-                        checkPartialVictory(grid,btn);
-                    }catch (IllegalArgumentException e){
-                    }
+                if((model.board.oddTurn && (model.p1.getClass() == IntelligentPlayer.class))||(!model.board.oddTurn && (model.p2.getClass() == IntelligentPlayer.class))){
+                    //Passing here means that there is some mistake, because buttons should not be clickable during IntelligentPlayer's turns
+                    return;
                 }
+                //From here on, we know that the actual player is human
+                HumanPlayer actualPlayer;
+                if(model.board.oddTurn){
+                    actualPlayer=(HumanPlayer)model.p1;
+                }
+                else{
+                    actualPlayer=(HumanPlayer)model.p2;
+                }
+                Button btn=(Button)v;
+                //The following instruction is needed because all the other clickable buttons have a question mark and are set unclickable in the deleteQuestionMarks method
+                btn.setClickable(false);
+                deleteQuestionMarks();
+                ArrayList<Integer> indices=getButtonIndices(btn);
+                actualPlayer.chosenAction=new HyperPosition(new Position(indices.get(0),indices.get(1)),new Position(indices.get(2),indices.get(3)));
             }
         };
+
         for(int i1=0;i1<3;i1++){
             for(int i2=0;i2<3;i2++){
                 for(int i3=0;i3<3;i3++){
@@ -198,169 +204,8 @@ public class MainActivity extends AppCompatActivity {
         bigGrid[2][0]=(GridLayout)findViewById(R.id.grid20);
         bigGrid[2][1]=(GridLayout)findViewById(R.id.grid21);
         bigGrid[2][2]=(GridLayout)findViewById(R.id.grid22);
-        //creo la matrice 3x3 di stringhe e le pongo tutte uguali alla stringa vuota
-        tris=new String[3][3];
-        for(int i1=0;i1<3;i1++){
-            for(int i2=0;i2<3;i2++){
-                tris[i1][i2]="";
-            }
-        }
-    }
-    public void checkPartialVictory(GridLayout grid, Button button) throws IllegalArgumentException{
-        ArrayList<Integer> gridIndices=this.getGridIndices(grid);
-        int i1=gridIndices.get(0);
-        int i2=gridIndices.get(1);
-        deleteOldQuestionMarks(button);
-        if(!tris[i1][i2].equals("")){
-            writeNewQuestionMarks(button);
-            return;
-        }
-        String temp="";
-        boolean isThereATris=true;
-        for(int i=0;i<8;i++){
-            isThereATris=true;
-            temp="";
-            for(int j=0;j<3;j++){
-                if(btn[i1][i2][WINNING_CONFIGURATIONS[i][j][0]][WINNING_CONFIGURATIONS[i][j][1]].getText().toString().equals("")){
-                    isThereATris=false;
-                    break;
-                }
-                else{
-                    if(temp.equals("")){
-                        temp=btn[i1][i2][WINNING_CONFIGURATIONS[i][j][0]][WINNING_CONFIGURATIONS[i][j][1]].getText().toString();
-                    }
-                    else{
-                        if(!temp.equals(btn[i1][i2][WINNING_CONFIGURATIONS[i][j][0]][WINNING_CONFIGURATIONS[i][j][1]].getText().toString())){
-                            isThereATris=false;
-                            break;
-                        }
-                    }
-                }
-            }
-            if(isThereATris){
-                break;
-            }
-        }
-        if(isThereATris){
-            this.tris[i1][i2]=temp;
-            grid.setBackgroundColor(temp.equals("X")? Color.BLUE : Color.RED);
-        }
-        if(gameOver()){
-            //Qua quando uno ha vinto
-            return;
-        }
-        else{
-            writeNewQuestionMarks(button);
-        }
-    }
 
-    public boolean gameOver(){
-        String temp="";
-        boolean isGameOver=true;
-        for(int i=0;i<8;i++){
-            isGameOver=true;
-            temp="";
-            for(int j=0;j<3;j++){
-                if(tris[WINNING_CONFIGURATIONS[i][j][0]][WINNING_CONFIGURATIONS[i][j][1]].equals("")){
-                    isGameOver=false;
-                    break;
-                }
-                else{
-                    if(temp.equals("")){
-                        temp=tris[WINNING_CONFIGURATIONS[i][j][0]][WINNING_CONFIGURATIONS[i][j][1]];
-                    }
-                    else{
-                        if(!temp.equals(tris[WINNING_CONFIGURATIONS[i][j][0]][WINNING_CONFIGURATIONS[i][j][1]])){
-                            isGameOver=false;
-                            break;
-                        }
-                    }
-                }
-            }
-            if(isGameOver){
-                break;
-            }
-        }
-        if(isGameOver){
-            Toast toast = Toast.makeText(this,"The winner is Player "+temp+"!",Toast.LENGTH_LONG);
-            toast.show();
-        }
-        return isGameOver;
-    }
-    public void deleteOldQuestionMarks(Button button){
-        ArrayList<Integer> indices=getButtonIndices(button);
-        //cancello i punti di domanda nella griglia dove è stato inserito il nuovo simbolo, nel caso in cui la mossa precedente fosse limitata ad una griglia
-        if(isNextGridOk) {
-            for (int i1 = 0; i1 < 3; i1++) {
-                for (int i2 = 0; i2 < 3; i2++) {
-                    if (btn[indices.get(0)][indices.get(1)][i1][i2].getText().toString().equals("?")) {
-                        btn[indices.get(0)][indices.get(1)][i1][i2].setText("");
-                    }
-                }
-            }
-        }
-        //cancello i punti di domanda in tutta la griglia grande perchè l'ultima mossa era una mossa non limitata ad una griglia
-        else{
-            for(int i1=0;i1<3;i1++){
-                for(int i2=0;i2<3;i2++){
-                    for(int i3=0;i3<3;i3++){
-                        for(int i4=0;i4<3;i4++){
-                            if(btn[i1][i2][i3][i4].getText().toString().equals("?")){
-                                btn[i1][i2][i3][i4].setText("");
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    public void writeNewQuestionMarks(Button button){
-        ArrayList<Integer> indices=getButtonIndices(button);
-        isNextGridOk=false;
-        //metto un "?" nero in quelli della futura griglia e che non hanno un simbolo (SE QUESTO È POSSIBILE!)
-        for(int i1=0;i1<3;i1++){
-            for(int i2=0;i2<3;i2++){
-                if(btn[indices.get(2)][indices.get(3)][i1][i2].getText().toString().equals("")){
-                    btn[indices.get(2)][indices.get(3)][i1][i2].setTextColor(Color.BLACK);
-                    btn[indices.get(2)][indices.get(3)][i1][i2].setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f);
-                    btn[indices.get(2)][indices.get(3)][i1][i2].setTypeface(Typeface.defaultFromStyle(Typeface.NORMAL));
-                    btn[indices.get(2)][indices.get(3)][i1][i2].setText("?");
-                    isNextGridOk=true;
-                }
-            }
-        }
-        //Vecchia strategia: metto un "?" nero in quelli delLa griglia attuale che non hanno un simbolo
-        /*
-        if(!isNextGridOk){
-            for(int i1=0;i1<3;i1++){
-                for(int i2=0;i2<3;i2++){
-                    if(btn[indices.get(0)][indices.get(1)][i1][i2].getText().toString().equals("")){
-                        btn[indices.get(0)][indices.get(1)][i1][i2].setTextColor(Color.BLACK);
-                        btn[indices.get(0)][indices.get(1)][i1][i2].setText("?");
-                    }
-                }
-            }
-        }
-        */
-        //metto un "?" nero in tutti i posti disponibili se il giocatore prima mi ha mandato in una griglia piena
-        //Anche perchè la tattica di lasciarti nella griglia attuale non risolve tutti i bug (ad esempio posso usare l'ultima casella libera di una griglia per mandarti in una griglia completa)
-        if(!isNextGridOk){
-            for(int i1=0;i1<3;i1++){
-                for(int i2=0;i2<3;i2++){
-                    for(int i3=0;i3<3;i3++){
-                        for(int i4=0;i4<3;i4++){
-                            if(btn[i1][i2][i3][i4].getText().toString().equals("")){
-                                btn[i1][i2][i3][i4].setTextColor(Color.BLACK);
-                                btn[i1][i2][i3][i4].setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f);
-                                btn[i1][i2][i3][i4].setTypeface(Typeface.defaultFromStyle(Typeface.NORMAL));
-                                btn[i1][i2][i3][i4].setText("?");
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        //model.play(this);
     }
 
     public ArrayList<Integer> getButtonIndices(Button button){
@@ -384,23 +229,6 @@ public class MainActivity extends AppCompatActivity {
         return null;
     }
 
-    public ArrayList<Integer> getGridIndices(GridLayout grid){
-        for(int i1=0;i1<3;i1++){
-            for(int i2=0;i2<3;i2++){
-                if(grid.equals(bigGrid[i1][i2])){
-                    ArrayList<Integer> indices=new ArrayList<Integer>();
-                    indices.add(i1);
-                    indices.add(i2);
-                    return indices;
-                }
-            }
-        }
-        //Di qua in teoria non passa mai, ma magari andrebbe sistemato facendo lanciare un eccezione
-        return null;
-    }
-
-
-    
 
     public void deserializeStrategy(){
         try {
@@ -437,55 +265,53 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public void giveReward(Player p1,Player p2, Board board){
-        //First player is winner
-        if(board.winner==1){
-            p1.feedReward(1);
-            p2.feedReward(0);
+    public void updateView(HyperPosition lastMove, ArrayList<HyperPosition> availableHyperPositions){
+        //We enter this if only when the player playing in this moment is a HumanPlayer
+        if((model.board.oddTurn && model.p1.getClass()==hp.getClass())||(!model.board.oddTurn && model.p2.getClass()==hp.getClass())){
+            writeQuestionMarks(availableHyperPositions);
         }
-        //Second player is winner
-        else if(board.winner==-1){
-            p1.feedReward(0);
-            p2.feedReward(1);
+        if(lastMove==null){
+            return;
         }
-        //The game ended in a tie
-        else{
-            p1.feedReward(0.5);
-            p2.feedReward(0.5);
+        int x1=lastMove.grid.x,y1=lastMove.grid.y,x2=lastMove.inGridPosition.x,y2=lastMove.inGridPosition.y;
+        btn[x1][y1][x2][y2].setTextColor(model.board.oddTurn? Color.BLUE : Color.RED);
+        btn[x1][y1][x2][y2].setTextSize(TypedValue.COMPLEX_UNIT_SP, 24f);
+        btn[x1][y1][x2][y2].setTypeface(Typeface.defaultFromStyle(Typeface.BOLD));
+        btn[x1][y1][x2][y2].setText(model.board.oddTurn? "X" : "O");
+
+
+    }
+
+    public void deleteQuestionMarks(){
+        for(int i1=0;i1<3;i1++){
+            for(int i2=0;i2<3;i2++){
+                for(int i3=0;i3<3;i3++){
+                    for(int i4=0;i4<3;i4++){
+                        if(btn[i1][i2][i3][i4].getText().toString().equals("?")){
+                            btn[i1][i2][i3][i4].setClickable(false);
+                            btn[i1][i2][i3][i4].setText("");
+                        }
+
+                    }
+                }
+            }
         }
     }
 
-    public void train(int n){
-        //Here I create two IntelligentPlayers with the saved strategy
-        deserializeStrategy();
-        IntelligentPlayer p1=new IntelligentPlayer(strategy,0.3);
-        IntelligentPlayer p2=new IntelligentPlayer(strategy,0.3);
-
-        Board board=new Board();
-        Position nextGridPosition=null;
-        HyperPosition action;
-        for(int i=0;i<n;i++){
-            while(board.winner==null){
-                if(board.oddTurn){
-                    action=p1.chooseAction(board.availableHyperPositions(nextGridPosition),board);
-                    board.update(action);
-                    p1.states.add(board.toString());
-                }
-                else{
-                    action=p2.chooseAction(board.availableHyperPositions(nextGridPosition),board);
-                    board.update(action);
-                    p2.states.add(board.toString());
-                }
-                nextGridPosition=action.inGridPosition;
-            }
-            //Qua devo dare la reward a chi se la merita..
-            giveReward(p1,p2,board);
-            board.reset();
-            p1.reset();
-            p2.reset();
+    public void writeQuestionMarks(ArrayList<HyperPosition> availableHyperPositions){
+        int x1,y1,x2,y2;
+        //Here I draw the question marks and set their buttons as clickable
+        for (HyperPosition hyperPos:availableHyperPositions) {
+            x1=hyperPos.grid.x;
+            y1=hyperPos.grid.y;
+            x2=hyperPos.inGridPosition.x;
+            y2=hyperPos.inGridPosition.y;
+            btn[x1][y1][x2][y2].setTextColor(Color.BLACK);
+            btn[x1][y1][x2][y2].setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f);
+            btn[x1][y1][x2][y2].setTypeface(Typeface.defaultFromStyle(Typeface.NORMAL));
+            btn[x1][y1][x2][y2].setText("?");
+            btn[x1][y1][x2][y2].setClickable(true);
         }
-        //Here I save the strategy (DOES THIS REALLY WORK OR THE ONLY MODIFICATION IS IN THE INPUT OF THE INTELLIGENTPLAYERS?)
-        serializeStrategy();
     }
 
 }
